@@ -1,0 +1,11 @@
+raytracer.dll
+raytracer.so
+libraytracer.so
+output/*.png
+*.o
+*.exe
+hello.cpp
+test_min.cpp
+build_*.txt
+err.txt
+out.txt
