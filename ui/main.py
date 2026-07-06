@@ -1,46 +1,26 @@
-"""
-ui/main.py — Interface gráfica do Ray Tracer
-Linguagem: Python 3
-
-Responsabilidade desta camada:
-  - Criar a janela e os controles (tkinter)
-  - Chamar o engine C++ via ctypes (FFI)
-  - Receber o buffer de pixels e exibir a imagem (PIL/Pillow)
-
-A comunicação entre Python e C++ se dá por meio de uma
-biblioteca compartilhada (raytracer.dll / raytracer.so)
-carregada em tempo de execução com ctypes.CDLL.
-"""
-
 import tkinter as tk
 from tkinter import ttk, messagebox
 import ctypes
 import os
-import sys
 import threading
 import time
 from PIL import Image, ImageTk
 
-# ============================================================
-#  Localização da biblioteca C++
-# ============================================================
+# caminhos da dll
+pasta_atual = os.path.dirname(os.path.abspath(__file__))
+pasta_raiz = os.path.dirname(pasta_atual)
 
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-ROOT_DIR   = os.path.dirname(SCRIPT_DIR)
-
-# Tenta .dll (Windows) depois .so (Linux/macOS)
-LIB_CANDIDATES = [
-    os.path.join(ROOT_DIR, "raytracer.dll"),
-    os.path.join(ROOT_DIR, "raytracer.so"),
-    os.path.join(ROOT_DIR, "libraytracer.so"),
+arquivos_dll = [
+    os.path.join(pasta_raiz, "raytracer.dll"),
+    os.path.join(pasta_raiz, "raytracer.so"),
+    os.path.join(pasta_raiz, "libraytracer.so"),
 ]
 
-def load_library():
-    for path in LIB_CANDIDATES:
-        if os.path.exists(path):
-            lib = ctypes.CDLL(path)
-            # Assinatura: void render(int w, int h, int samples, uint8_t* buf)
-            lib.render.restype  = None
+def load_engine():
+    for dll in arquivos_dll:
+        if os.path.exists(dll):
+            lib = ctypes.CDLL(dll)
+            lib.render.restype = None
             lib.render.argtypes = [
                 ctypes.c_int,
                 ctypes.c_int,
@@ -50,174 +30,102 @@ def load_library():
             return lib
     return None
 
-# ============================================================
-#  Chamada ao engine C++
-# ============================================================
-
-def call_render(lib, width, height, samples):
-    """
-    Aloca o buffer, chama render() da DLL e devolve
-    um objeto PIL.Image com o resultado.
-    """
+def chama_engine(lib, width, height, samples):
     buf_size = width * height * 3
-    buf      = (ctypes.c_uint8 * buf_size)()
-
+    buf = (ctypes.c_uint8 * buf_size)()
     lib.render(width, height, samples, buf)
+    
+    # converte p imagem
+    return Image.frombytes("RGB", (width, height), bytes(buf))
 
-    # Converte buffer bruto para imagem PIL (modo RGB)
-    img = Image.frombytes("RGB", (width, height), bytes(buf))
-    return img
-
-# ============================================================
-#  Interface gráfica (tkinter)
-# ============================================================
-
-class RayTracerApp(tk.Tk):
+class AppRayTracer(tk.Tk):
     def __init__(self):
         super().__init__()
 
-        self.lib = load_library()
-        self.title("Ray Tracer — C++ Engine / Python UI")
+        self.lib = load_engine()
+        self.title("Ray Tracer - C++ e Python")
         self.resizable(False, False)
         self.configure(bg="#1a1a2e")
 
-        self._build_ui()
-        self._rendered_image = None
+        self.img_atual = None
+        self.monta_tela()
 
-    # --------------------------------------------------------
-    #  Construção da UI
-    # --------------------------------------------------------
-
-    def _build_ui(self):
+    def monta_tela(self):
         style = ttk.Style(self)
         style.theme_use("clam")
-        style.configure("TLabel",  background="#1a1a2e", foreground="#e0e0e0", font=("Courier", 10))
-        style.configure("TButton", background="#e94560", foreground="#ffffff",
-                        font=("Courier", 10, "bold"), relief="flat", padding=6)
-        style.map("TButton", background=[("active", "#c73652")])
-        style.configure("TScale",  background="#1a1a2e", troughcolor="#16213e",
-                        sliderthickness=14)
+        style.configure("TButton", background="#e94560", foreground="#ffffff", font=("Courier", 10, "bold"), relief="flat", padding=6)
+        
+        # menu lateral
+        menu = tk.Frame(self, bg="#16213e", padx=14, pady=14)
+        menu.pack(side=tk.LEFT, fill=tk.Y)
 
-        # ── Painel de controles (esquerda) ──────────────────
-        ctrl = tk.Frame(self, bg="#16213e", padx=14, pady=14)
-        ctrl.pack(side=tk.LEFT, fill=tk.Y)
+        tk.Label(menu, text="CONFIGURACOES", bg="#16213e", fg="#e94560", font=("Courier", 11, "bold")).pack(pady=(0, 12))
 
-        tk.Label(ctrl, text="⚙ CONFIGURAÇÕES", bg="#16213e",
-                 fg="#e94560", font=("Courier", 11, "bold")).pack(pady=(0, 12))
+        # largura
+        tk.Label(menu, text="Largura (px):", bg="#16213e", fg="#a0c4ff", font=("Courier", 9)).pack(anchor="w")
+        self.val_largura = tk.IntVar(value=640)
+        tk.Spinbox(menu, textvariable=self.val_largura, from_=64, to=1920, increment=64, width=10).pack(anchor="w", pady=(0, 10))
 
-        # Resolução
-        self._add_label(ctrl, "Largura (px):")
-        self.var_width = tk.IntVar(value=640)
-        self._add_spin(ctrl, self.var_width, 64, 1920, 64)
+        # altura
+        tk.Label(menu, text="Altura (px):", bg="#16213e", fg="#a0c4ff", font=("Courier", 9)).pack(anchor="w")
+        self.val_altura = tk.IntVar(value=360)
+        tk.Spinbox(menu, textvariable=self.val_altura, from_=64, to=1080, increment=64, width=10).pack(anchor="w", pady=(0, 10))
 
-        self._add_label(ctrl, "Altura (px):")
-        self.var_height = tk.IntVar(value=360)
-        self._add_spin(ctrl, self.var_height, 64, 1080, 64)
+        # samples
+        tk.Label(menu, text="Amostras/pixel:", bg="#16213e", fg="#a0c4ff", font=("Courier", 9)).pack(anchor="w")
+        self.val_samples = tk.IntVar(value=4)
+        tk.Spinbox(menu, textvariable=self.val_samples, from_=1, to=64, increment=1, width=10).pack(anchor="w", pady=(0, 10))
 
-        # Amostras por pixel
-        self._add_label(ctrl, "Amostras/pixel:")
-        self.var_samples = tk.IntVar(value=4)
-        self._add_spin(ctrl, self.var_samples, 1, 64, 1)
+        # botoes
+        ttk.Button(menu, text="RENDERIZAR", command=self.btn_render).pack(fill=tk.X, pady=5)
+        ttk.Button(menu, text="SALVAR IMAGEM", command=self.btn_salvar).pack(fill=tk.X)
 
-        ttk.Separator(ctrl, orient="horizontal").pack(fill=tk.X, pady=10)
+        self.texto_status = tk.Label(menu, text="Pronto.", bg="#16213e", fg="#a0a0c0", font=("Courier", 9), wraplength=160)
+        self.texto_status.pack(pady=10)
 
-        # Botão render
-        ttk.Button(ctrl, text="▶  RENDERIZAR", command=self._start_render).pack(fill=tk.X)
+        # tela da imagem
+        self.tela_img = tk.Canvas(self, width=640, height=360, bg="#0f0f1a", highlightthickness=0)
+        self.tela_img.pack(side=tk.RIGHT, padx=8, pady=8)
+        self.tela_img.create_text(320, 180, text="Aguardando render...", fill="#3a3a5c", font=("Courier", 13))
 
-        # Botão salvar
-        ttk.Button(ctrl, text="💾  SALVAR PNG", command=self._save_image).pack(fill=tk.X, pady=(6, 0))
-
-        ttk.Separator(ctrl, orient="horizontal").pack(fill=tk.X, pady=10)
-
-        # Status / tempo
-        self.lbl_status = tk.Label(ctrl, text="Aguardando...", bg="#16213e",
-                                   fg="#a0a0c0", font=("Courier", 9), wraplength=160)
-        self.lbl_status.pack()
-
-        # ── Canvas de exibição da imagem (direita) ──────────
-        self.canvas = tk.Canvas(self, width=640, height=360,
-                                bg="#0f0f1a", highlightthickness=0)
-        self.canvas.pack(side=tk.RIGHT, padx=8, pady=8)
-        self._draw_placeholder()
-
-    def _add_label(self, parent, text):
-        tk.Label(parent, text=text, bg="#16213e", fg="#a0c4ff",
-                 font=("Courier", 9)).pack(anchor="w", pady=(8, 0))
-
-    def _add_spin(self, parent, var, from_, to, increment):
-        sb = tk.Spinbox(parent, textvariable=var, from_=from_, to=to,
-                        increment=increment, width=10,
-                        bg="#0f3460", fg="#e0e0e0", insertbackground="#e0e0e0",
-                        relief="flat", font=("Courier", 10))
-        sb.pack(anchor="w")
-
-    def _draw_placeholder(self):
-        self.canvas.create_text(320, 180, text="[ Nenhuma imagem renderizada ]",
-                                fill="#3a3a5c", font=("Courier", 13))
-
-    # --------------------------------------------------------
-    #  Render (thread separada para não travar a UI)
-    # --------------------------------------------------------
-
-    def _start_render(self):
-        if self.lib is None:
-            messagebox.showerror(
-                "Biblioteca não encontrada",
-                "raytracer.dll / raytracer.so não encontrado.\n"
-                "Execute 'make dll' antes de rodar a interface."
-            )
+    def btn_render(self):
+        if not self.lib:
+            messagebox.showerror("Erro", "Engine DLL nao encontrado. Rode make dll antes.")
             return
 
-        w = self.var_width.get()
-        h = self.var_height.get()
-        s = self.var_samples.get()
+        w = self.val_largura.get()
+        h = self.val_altura.get()
+        s = self.val_samples.get()
 
-        self.lbl_status.config(text=f"Renderizando {w}×{h}, {s} spp...", fg="#ffda77")
-        self.update_idletasks()
-
-        # Redimensiona o canvas
-        self.canvas.config(width=w, height=h)
-
-        # Roda em thread para não bloquear a UI
-        t = threading.Thread(target=self._render_thread, args=(w, h, s), daemon=True)
+        self.texto_status.config(text=f"Calculando {w}x{h}...", fg="#ffda77")
+        self.tela_img.config(width=w, height=h)
+        
+        # Joga pra outra thread pra janela nao travar
+        t = threading.Thread(target=self.roda_engine, args=(w, h, s), daemon=True)
         t.start()
 
-    def _render_thread(self, w, h, s):
-        t0  = time.perf_counter()
-        img = call_render(self.lib, w, h, s)
-        elapsed = time.perf_counter() - t0
+    def roda_engine(self, w, h, s):
+        t0 = time.perf_counter()
+        img = chama_engine(self.lib, w, h, s)
+        tempo = time.perf_counter() - t0
 
-        self._rendered_image = img
-        self.after(0, self._display_image, img, elapsed)
+        self.img_atual = img
+        self.after(0, self.mostra_resultado, img, tempo)
 
-    def _display_image(self, img, elapsed):
-        # Exibe a imagem no canvas via PIL→ImageTk
-        self._tk_img = ImageTk.PhotoImage(img)
-        self.canvas.delete("all")
-        self.canvas.create_image(0, 0, anchor="nw", image=self._tk_img)
-        self.lbl_status.config(
-            text=f"✔ Concluído em {elapsed:.2f}s\n{img.width}×{img.height}",
-            fg="#77ffaa"
-        )
+    def mostra_resultado(self, img, tempo):
+        self.tk_img = ImageTk.PhotoImage(img)
+        self.tela_img.delete("all")
+        self.tela_img.create_image(0, 0, anchor="nw", image=self.tk_img)
+        self.texto_status.config(text=f"Feito em {tempo:.2f}s", fg="#77ffaa")
 
-    # --------------------------------------------------------
-    #  Salvar imagem
-    # --------------------------------------------------------
-
-    def _save_image(self):
-        if self._rendered_image is None:
-            messagebox.showinfo("Nenhuma imagem", "Renderize antes de salvar.")
-            return
-        out_dir  = os.path.join(ROOT_DIR, "output")
-        os.makedirs(out_dir, exist_ok=True)
-        filename = os.path.join(out_dir, f"render_{int(time.time())}.png")
-        self._rendered_image.save(filename)
-        self.lbl_status.config(text=f"Salvo em:\n{filename}", fg="#77aaff")
-
-# ============================================================
-#  Ponto de entrada
-# ============================================================
+    def btn_salvar(self):
+        if not self.img_atual: return
+        pasta_out = os.path.join(pasta_raiz, "output")
+        os.makedirs(pasta_out, exist_ok=True)
+        arq = os.path.join(pasta_out, f"render_{int(time.time())}.png")
+        self.img_atual.save(arq)
+        self.texto_status.config(text=f"Salvo em:\n{arq}")
 
 if __name__ == "__main__":
-    app = RayTracerApp()
+    app = AppRayTracer()
     app.mainloop()

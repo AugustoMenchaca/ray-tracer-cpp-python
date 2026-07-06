@@ -74,6 +74,6 @@ make clean
 
 ## Integrantes
 
-- Nome 1
-- Nome 2
-- Nome 3
+- Inácio Teixeira
+- Hiago Muniz
+- Augusto Menchaca
