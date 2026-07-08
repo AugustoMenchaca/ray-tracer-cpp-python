@@ -6,7 +6,6 @@ import threading
 import time
 from PIL import Image, ImageTk
 
-# caminhos da dll
 pasta_atual = os.path.dirname(os.path.abspath(__file__))
 pasta_raiz = os.path.dirname(pasta_atual)
 
@@ -34,8 +33,6 @@ def chama_engine(lib, width, height, samples):
     buf_size = width * height * 3
     buf = (ctypes.c_uint8 * buf_size)()
     lib.render(width, height, samples, buf)
-    
-    # converte p imagem
     return Image.frombytes("RGB", (width, height), bytes(buf))
 
 class AppRayTracer(tk.Tk):
@@ -55,35 +52,29 @@ class AppRayTracer(tk.Tk):
         style.theme_use("clam")
         style.configure("TButton", background="#e94560", foreground="#ffffff", font=("Courier", 10, "bold"), relief="flat", padding=6)
         
-        # menu lateral
         menu = tk.Frame(self, bg="#16213e", padx=14, pady=14)
         menu.pack(side=tk.LEFT, fill=tk.Y)
 
         tk.Label(menu, text="CONFIGURACOES", bg="#16213e", fg="#e94560", font=("Courier", 11, "bold")).pack(pady=(0, 12))
 
-        # largura
         tk.Label(menu, text="Largura (px):", bg="#16213e", fg="#a0c4ff", font=("Courier", 9)).pack(anchor="w")
         self.val_largura = tk.IntVar(value=640)
         tk.Spinbox(menu, textvariable=self.val_largura, from_=64, to=1920, increment=64, width=10).pack(anchor="w", pady=(0, 10))
 
-        # altura
         tk.Label(menu, text="Altura (px):", bg="#16213e", fg="#a0c4ff", font=("Courier", 9)).pack(anchor="w")
         self.val_altura = tk.IntVar(value=360)
         tk.Spinbox(menu, textvariable=self.val_altura, from_=64, to=1080, increment=64, width=10).pack(anchor="w", pady=(0, 10))
 
-        # samples
         tk.Label(menu, text="Amostras/pixel:", bg="#16213e", fg="#a0c4ff", font=("Courier", 9)).pack(anchor="w")
         self.val_samples = tk.IntVar(value=4)
         tk.Spinbox(menu, textvariable=self.val_samples, from_=1, to=64, increment=1, width=10).pack(anchor="w", pady=(0, 10))
 
-        # botoes
         ttk.Button(menu, text="RENDERIZAR", command=self.btn_render).pack(fill=tk.X, pady=5)
         ttk.Button(menu, text="SALVAR IMAGEM", command=self.btn_salvar).pack(fill=tk.X)
 
         self.texto_status = tk.Label(menu, text="Pronto.", bg="#16213e", fg="#a0a0c0", font=("Courier", 9), wraplength=160)
         self.texto_status.pack(pady=10)
 
-        # tela da imagem
         self.tela_img = tk.Canvas(self, width=640, height=360, bg="#0f0f1a", highlightthickness=0)
         self.tela_img.pack(side=tk.RIGHT, padx=8, pady=8)
         self.tela_img.create_text(320, 180, text="Aguardando render...", fill="#3a3a5c", font=("Courier", 13))
@@ -100,7 +91,6 @@ class AppRayTracer(tk.Tk):
         self.texto_status.config(text=f"Calculando {w}x{h}...", fg="#ffda77")
         self.tela_img.config(width=w, height=h)
         
-        # Joga pra outra thread pra janela nao travar
         t = threading.Thread(target=self.roda_engine, args=(w, h, s), daemon=True)
         t.start()
 

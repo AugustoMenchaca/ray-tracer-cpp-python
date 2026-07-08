@@ -51,7 +51,6 @@ struct Camera {
     #define DLL_EXPORT
 #endif
 
-// A gente exporta o render pra poder puxar do python
 extern "C" {
     DLL_EXPORT void render(int width, int height, int samples, uint8_t* out_rgb);
 }

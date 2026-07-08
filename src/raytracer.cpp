@@ -30,7 +30,6 @@ struct HitRecord {
     bool  hit;
 };
 
-// Faz a logica do raio bater na esfera
 static HitRecord intersect_sphere(const Ray& ray, const Sphere& s, float tmin, float tmax) {
     Vec3  oc = ray.origin - s.center;
     float a  = ray.dir.dot(ray.dir);
@@ -63,19 +62,12 @@ static Sphere minhasEsferas[qtd_spheres];
 static Light  minhaLuz;
 
 static void build_scene() {
-    // chao
     minhasEsferas[0] = { {0, -1000.5f, 0}, 1000.f, {{0.6f, 0.6f, 0.6f}, 0.05f, 16.f} };
-    // centro vermelho
     minhasEsferas[1] = { {0, 0, -2}, 0.5f, {{0.9f, 0.15f, 0.1f}, 0.35f, 64.f} };
-    // azul esquerda
     minhasEsferas[2] = { {-1.1f, 0, -2}, 0.5f, {{0.1f, 0.4f, 0.9f}, 0.15f, 32.f} };
-    // dourada direita
     minhasEsferas[3] = { {1.1f, 0, -2}, 0.5f, {{0.95f, 0.75f, 0.1f}, 0.55f, 128.f} };
-    // espelho fundo
     minhasEsferas[4] = { {0, 0, -3.5f}, 0.7f, {{0.9f, 0.9f, 0.9f}, 0.95f, 256.f} };
-    // verde pequena
     minhasEsferas[5] = { {-0.5f, -0.25f, -1.2f}, 0.25f, {{0.2f, 0.85f, 0.3f}, 0.1f, 16.f} };
-    // roxa pequena
     minhasEsferas[6] = { {0.55f, -0.25f, -1.2f}, 0.25f, {{0.6f, 0.1f, 0.9f}, 0.2f, 32.f} };
 
     minhaLuz = { {2.f, 4.f, 0.f}, {1.f, 1.f, 1.f}, 1.f };
@@ -127,7 +119,6 @@ static Vec3 shade(const Ray& ray, const HitRecord& rec, int depth) {
 
     Vec3 local = ambient + diffuse + specular;
 
-    // reflete recursivo se o material brilhar
     if (rec.mat.reflectivity > 0.01f && depth < MAX_DEPTH) {
         Vec3 ref_dir  = ray.dir.reflect(N);
         Ray  ref_ray  = { rec.point, ref_dir.normalize() };
@@ -145,7 +136,6 @@ static Vec3 trace_raio(const Ray& ray, int depth) {
 
     if (rec.hit) return shade(ray, rec, depth);
 
-    // faz degrade pro ceu
     float t = 0.5f * (ray.dir.normalize().y + 1.0f);
     Vec3 sky_top    = {0.35f, 0.55f, 0.9f};
     Vec3 sky_bottom = {1.f, 1.f, 1.f};
