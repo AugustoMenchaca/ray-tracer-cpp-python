@@ -24,33 +24,34 @@ Aplicação de Ray Tracing com engine em **C++** e interface gráfica em **Pytho
 - `g++` com suporte a C++17 (MSYS2/MinGW no Windows ou GCC no Linux)
 
 ### Python
+- `Pillow>=10.0.0`
+
+## Como Configurar e Rodar
+
+### 1. Instalar as dependências
+Execute o comando a seguir para preparar o ambiente instalando as dependências de Python (e de sistema, se estiver no Linux):
 ```bash
-pip install Pillow
+make setup
 ```
 
-## Como Compilar
-
-```bash
-make dll
-```
-
-Gera `raytracer.dll` (Windows) ou `raytracer.so` (Linux/macOS).
-
-## Como Executar
-
-### Interface gráfica
+### 2. Compilar e executar a interface gráfica
+Execute o comando a seguir para compilar a biblioteca de ray tracing e abrir a janela de controle do aplicativo:
 ```bash
 make run
 ```
 
-Abre a janela Python onde você escolhe resolução e amostras por pixel e clica em **RENDERIZAR**.
-
-### Caso de estudo (headless)
+### 3. Executar o caso de estudo (sem interface)
+Para renderizar uma cena padrão diretamente pelo terminal (salva automaticamente em `output/study.png`):
 ```bash
 make study
 ```
 
-Renderiza uma cena 480×270 com 8 amostras/pixel e salva em `output/study.png`, sem abrir janela.
+## Limpeza
+
+Para remover arquivos compilados e imagens geradas temporárias:
+```bash
+make clean
+```
 
 ## Arquitetura — Integração entre Linguagens
 

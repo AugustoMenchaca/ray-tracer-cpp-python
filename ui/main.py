@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import ctypes
 import os
+import sys
 import threading
 import time
 from PIL import Image, ImageTk
@@ -9,13 +10,16 @@ from PIL import Image, ImageTk
 pasta_atual = os.path.dirname(os.path.abspath(__file__))
 pasta_raiz = os.path.dirname(pasta_atual)
 
-arquivos_dll = [
-    os.path.join(pasta_raiz, "raytracer.dll"),
-    os.path.join(pasta_raiz, "raytracer.so"),
-    os.path.join(pasta_raiz, "libraytracer.so"),
-]
-
 def load_engine():
+    # Carrega a DLL apropriada dependendo do Sistema Operacional
+    if sys.platform == "win32":
+        arquivos_dll = [os.path.join(pasta_raiz, "raytracer.dll")]
+    else:
+        arquivos_dll = [
+            os.path.join(pasta_raiz, "raytracer.so"),
+            os.path.join(pasta_raiz, "libraytracer.so"),
+        ]
+
     for dll in arquivos_dll:
         if os.path.exists(dll):
             lib = ctypes.CDLL(dll)

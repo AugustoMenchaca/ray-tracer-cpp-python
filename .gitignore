@@ -9,3 +9,5 @@ test_min.cpp
 build_*.txt
 err.txt
 out.txt
+nul
+

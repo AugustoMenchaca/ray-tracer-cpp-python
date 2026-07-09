@@ -4,12 +4,17 @@ SRC      = src/raytracer.cpp
 PYTHON   = python
 
 ifeq ($(OS),Windows_NT)
+    # Se o MSYS2 estiver instalado no local padrão, adiciona ao PATH para garantir o g++ de 64-bit e utilitários Unix
+    ifneq ($(wildcard C:/msys64/mingw64/bin),)
+        export PATH := C:\msys64\mingw64\bin;C:\msys64\usr\bin;$(PATH)
+    endif
     LIB    = raytracer.dll
     LFLAGS =
 else
     LIB    = raytracer.so
     LFLAGS = -lm
     CXXFLAGS += -fPIC
+    PYTHON   = python3
 endif
 
 dll:
@@ -34,8 +39,25 @@ img.save('output/study.png'); \
 print('>> Caso de estudo salvo em output/study.png') \
 "
 
-clean:
-	rm -f raytracer.dll raytracer.so libraytracer.so
-	rm -f output/*.png
+setup:
+ifeq ($(OS),Windows_NT)
+	$(PYTHON) -m pip install -r requirements.txt
+else
+	@echo "Instalando dependencias de sistema e Python no Linux/WSL..."
+	sudo apt update && sudo apt install build-essential python3 python3-pip python3-tk python3-pil.imagetk -y
+	$(PYTHON) -m pip install --break-system-packages -r requirements.txt || $(PYTHON) -m pip install -r requirements.txt
+endif
 
-.PHONY: dll run study clean
+clean:
+ifeq ($(OS),Windows_NT)
+    ifeq ($(findstring sh,$(SHELL)),sh)
+		-rm -f $(LIB) output/*.png 2>/dev/null
+    else
+		-del /q /f $(LIB) 2>nul
+		-del /q /f output\*.png 2>nul
+    endif
+else
+	rm -f $(LIB) libraytracer.so output/*.png
+endif
+
+.PHONY: dll run study clean setup
