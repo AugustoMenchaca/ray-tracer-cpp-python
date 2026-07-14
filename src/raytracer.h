@@ -53,4 +53,5 @@ struct Camera {
 
 extern "C" {
     DLL_EXPORT void render(int width, int height, int samples, uint8_t* out_rgb);
+    DLL_EXPORT void set_scene(int scene_id);
 }

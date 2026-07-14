@@ -30,6 +30,11 @@ def load_engine():
                 ctypes.c_int,
                 ctypes.POINTER(ctypes.c_uint8),
             ]
+            
+            if hasattr(lib, 'set_scene'):
+                lib.set_scene.restype = None
+                lib.set_scene.argtypes = [ctypes.c_int]
+                
             return lib
     return None
 
@@ -61,6 +66,11 @@ class AppRayTracer(tk.Tk):
 
         tk.Label(menu, text="CONFIGURACOES", bg="#16213e", fg="#e94560", font=("Courier", 11, "bold")).pack(pady=(0, 12))
 
+        tk.Label(menu, text="Cena:", bg="#16213e", fg="#a0c4ff", font=("Courier", 9)).pack(anchor="w")
+        self.val_scene = tk.StringVar(value="Classic")
+        self.combo_scene = ttk.Combobox(menu, textvariable=self.val_scene, values=["Classic", "Mirrors", "Minimal"], state="readonly", width=12)
+        self.combo_scene.pack(anchor="w", pady=(0, 10))
+
         tk.Label(menu, text="Largura (px):", bg="#16213e", fg="#a0c4ff", font=("Courier", 9)).pack(anchor="w")
         self.val_largura = tk.IntVar(value=640)
         tk.Spinbox(menu, textvariable=self.val_largura, from_=64, to=1920, increment=64, width=10).pack(anchor="w", pady=(0, 10))
@@ -88,11 +98,15 @@ class AppRayTracer(tk.Tk):
             messagebox.showerror("Erro", "Engine DLL nao encontrado. Rode make dll antes.")
             return
 
+        if hasattr(self.lib, 'set_scene'):
+            scene_idx = {"Classic": 0, "Mirrors": 1, "Minimal": 2}.get(self.val_scene.get(), 0)
+            self.lib.set_scene(scene_idx)
+
         w = self.val_largura.get()
         h = self.val_altura.get()
         s = self.val_samples.get()
 
-        self.texto_status.config(text=f"Calculando {w}x{h}...", fg="#ffda77")
+        self.texto_status.config(text=f"Calculando {w}x{h} ({self.val_scene.get()})...", fg="#ffda77")
         self.tela_img.config(width=w, height=h)
         
         t = threading.Thread(target=self.roda_engine, args=(w, h, s), daemon=True)
@@ -104,13 +118,15 @@ class AppRayTracer(tk.Tk):
         tempo = time.perf_counter() - t0
 
         self.img_atual = img
-        self.after(0, self.mostra_resultado, img, tempo)
+        self.after(0, self.mostra_resultado, img, tempo, w, h, s)
 
-    def mostra_resultado(self, img, tempo):
+    def mostra_resultado(self, img, tempo, w, h, s):
         self.tk_img = ImageTk.PhotoImage(img)
         self.tela_img.delete("all")
         self.tela_img.create_image(0, 0, anchor="nw", image=self.tk_img)
-        self.texto_status.config(text=f"Feito em {tempo:.2f}s", fg="#77ffaa")
+        
+        total_rays = w * h * s
+        self.texto_status.config(text=f"Res: {w}x{h}\nSpp: {s}\nRays: {total_rays}\nTempo: {tempo:.2f}s", fg="#77ffaa")
 
     def btn_salvar(self):
         if not self.img_atual: return
